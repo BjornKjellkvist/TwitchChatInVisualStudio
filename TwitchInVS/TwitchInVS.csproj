@@ -83,12 +83,15 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="license.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <Content Include="Resources\ConfigurationWindow.png" />
     <Content Include="Resources\ConfigurationWindowCommand.png" />
     <Resource Include="Resources\Twitch.jpg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Resource>
-    <Content Include="TwitchChatSharp.sln" />
     <VSCTCompile Include="ChatWindowPackage.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>
