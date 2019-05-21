@@ -6,6 +6,7 @@
     using System;
     using System.Windows.Controls;
     using TwitchChatSharp;
+    using TwitchInVS.Properties;
 
     /// <summary>
     /// Interaction logic for ChatWindowControl.
@@ -26,10 +27,10 @@
             TwitchChatReader = new ChatReader();
             TwitchChatReader.MessageReceived += MessageReceived;
             TwitchChatReader.Connceted += OnConnect;
-            if (!string.IsNullOrEmpty(TwitchChatReader.UserName) && !string.IsNullOrEmpty(TwitchChatReader.AccessToken) && !string.IsNullOrEmpty(TwitchChatReader.Channel))
+            if (!string.IsNullOrEmpty(Settings.Default.UserName) && !string.IsNullOrEmpty(Settings.Default.AccessToken) && !string.IsNullOrEmpty(Settings.Default.Channel))
             {
                 TwitchChatReader.CreateClient();
-                ChannelName.Text = TwitchChatReader.Channel;
+                ChannelName.Text = Settings.Default.Channel;
                 try
                 {
                     AddLineToChat("Trying to connect");
@@ -57,18 +58,27 @@
         public void OnConnect(object sender, IrcConnectedEventArgs e)
         {
             {
-                TwitchChatReader.client.JoinChannel("#" + TwitchChatReader.Channel);
-                AddLineToChat($"Connected to chat channel {TwitchChatReader.Channel}!");
+                TwitchChatReader.client.JoinChannel("#" + Settings.Default.Channel);
+                ChannelName.Text = Settings.Default.Channel;
+                AddLineToChat($"Connected to chat channel {Settings.Default.Channel}!");
             };
         }
 
         public void MessageReceived(object sender, IrcMessageEventArgs e)
         {
-            if (e.Message.User.EndsWith("tmi.twitch.tv") || 
-                string.IsNullOrEmpty(e.Message.Message.TrimEnd(' ')) || 
-                TwitchChatReader.BanList.Contains(e.Message.User) || 
-                (IgnoreCommands && e.Message.Message.StartsWith("!"))) return;
-            AddLineToChat(e.Message.User + ": " + e.Message.Message);
+            if (MessageVerified(e.Message))
+            {
+                AddLineToChat(e.Message.User + ": " + e.Message.Message);
+            }
+        }
+
+        private bool MessageVerified(IrcMessage message)
+        {
+            return !message.User.EndsWith("tmi.twitch.tv") &&
+                !string.IsNullOrEmpty(message.Message) &&
+                !string.IsNullOrEmpty(message.User) &&
+                !Settings.Default.IgnoreList.Contains(message.User) &&
+                !(IgnoreCommands && message.Message.StartsWith("!"));
         }
 
         private void ConfigButton_Click(object sender, System.Windows.RoutedEventArgs e)

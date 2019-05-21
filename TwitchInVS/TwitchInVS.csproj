@@ -68,6 +68,11 @@
     </Compile>
     <Compile Include="DictionaryExtsension.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+      <DependentUpon>Settings.settings</DependentUpon>
+    </Compile>
     <Compile Include="TwitchConnector\IrcConnectedEventArgs.cs" />
     <Compile Include="TwitchConnector\IrcConnection.cs" />
     <Compile Include="TwitchConnector\IrcMessage.cs" />
@@ -78,6 +83,10 @@
     <None Include="app.config" />
     <None Include="Key.snk" />
     <None Include="packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
     <None Include="source.extension.vsixmanifest">
       <SubType>Designer</SubType>
     </None>
@@ -98,6 +107,9 @@
     <Content Include="index.html" />
     <Content Include="Resources\ChatWindowCommand.png" />
     <Content Include="Resources\ChatWindowPackage.ico" />
+    <Resource Include="Resources\Delete.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Resource>
     <Content Include="Resources\TwitchIcon.bmp">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>

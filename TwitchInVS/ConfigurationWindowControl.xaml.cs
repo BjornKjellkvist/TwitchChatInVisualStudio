@@ -1,12 +1,11 @@
 ﻿namespace TwitchInVS
 {
     using System;
-    using System.Collections.Generic;
-    using System.IO;
-    using System.Linq;
+    using System.Collections.ObjectModel;
     using System.Windows;
     using System.Windows.Controls;
-    using System.Xml.Linq;
+    using System.Windows.Data;
+    using TwitchInVS.Properties;
 
     /// <summary>
     /// Interaction logic for ConfigurationWindowControl.
@@ -14,9 +13,12 @@
     public partial class ConfigurationWindowControl : UserControl
     {
 
-        public const string ConfigFileName = "TwitchConnection.config";
+        //public const string ConfigFileName = "TwitchConnection.config";
 
-        public const string BanlistFileName = "IgnoreList.txt";
+        //public const string BanlistFileName = "IgnoreList.txt";
+        private static object _syncLock = new object();
+
+        ObservableCollection<string> IgnoreListDisplay = new ObservableCollection<string>();
 
 
         /// <summary>
@@ -32,48 +34,47 @@
 
             Channel.TextChanged += Channel_TextChanged;
 
-            if (File.Exists(ConfigFileName))
+            UserName.Text = Settings.Default.UserName;
+            AccessToken.Password = Settings.Default.AccessToken;
+            Channel.Text = Settings.Default.Channel;
+            IgnoreCommands.IsChecked = Settings.Default.IgnoreCommands;
+            if (Settings.Default.IgnoreList == null) Settings.Default.IgnoreList = new System.Collections.Specialized.StringCollection();
+            BindingOperations.EnableCollectionSynchronization(IgnoreListDisplay, _syncLock);
+            BanlistEditor.ItemsSource = IgnoreListDisplay;
+            for (int i = 0; i < Settings.Default.IgnoreList.Count; i++)
             {
-                ChatWindowControl.TwitchChatReader.confs = LoadSettings();
-
-                UserName.Text = ChatWindowControl.TwitchChatReader.confs.GetSafe("UserName");
-                AccessToken.Password = ChatWindowControl.TwitchChatReader.confs.GetSafe("AccesToken");
-                Channel.Text = ChatWindowControl.TwitchChatReader.confs.GetSafe("Channel");
-                IgnoreCommands.IsChecked = bool.TryParse(ChatWindowControl.TwitchChatReader.confs.GetSafe("IgnoreCommands"), out var ignoreCommands) ? ignoreCommands : false;
+                IgnoreListDisplay.Add(Settings.Default.IgnoreList[i]);
             }
-            if (File.Exists(BanlistFileName))
-            {
-                var banlist = LoadBanList();
-                BanlistEditor.Text = string.Join(Environment.NewLine, banlist);
-                ChatWindowControl.TwitchChatReader.BanList.AddRange(banlist);
 
-            }
         }
 
         private void AccessToken_PasswordChanged(object sender, RoutedEventArgs e)
         {
-            ChatWindowControl.TwitchChatReader.confs.Update("AccesToken", AccessToken.Password);
-            ChatWindowControl.TwitchChatReader.AccessToken = AccessToken.Password;
-            SaveToFile();
+            Settings.Default.AccessToken = AccessToken.Password;
+            Settings.Default.Save();
         }
 
         private void UserName_TextChanged(object sender, TextChangedEventArgs e)
         {
-            ChatWindowControl.TwitchChatReader.confs.Update("UserName", UserName.Text);
-            ChatWindowControl.TwitchChatReader.UserName = UserName.Text;
-            SaveToFile();
+            Settings.Default.UserName = UserName.Text;
+            Settings.Default.Save();
+
         }
 
         private void Channel_TextChanged(object sender, TextChangedEventArgs e)
         {
-            ChatWindowControl.TwitchChatReader.confs.Update("Channel", Channel.Text);
-            ChatWindowControl.TwitchChatReader.Channel = Channel.Text;
-            SaveToFile();
+            Settings.Default.Channel = Channel.Text;
+            Settings.Default.Save();
         }
 
-        private void SaveToFile()
+        private void IgnoreCommands_CheckedChanged(object sender, RoutedEventArgs e)
         {
-            new XElement("root", ChatWindowControl.TwitchChatReader.confs.Select(kv => new XElement(kv.Key, kv.Value))).Save(ConfigFileName, SaveOptions.OmitDuplicateNamespaces);
+            if (IgnoreCommands.IsChecked != null)
+            {
+                Settings.Default.IgnoreCommands = (bool)IgnoreCommands.IsChecked;
+                Settings.Default.Save();
+                ChatWindowControl.IgnoreCommands = (bool)IgnoreCommands.IsChecked;
+            }
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
@@ -86,38 +87,6 @@
             catch (ArgumentException)
             {
                 MessageBox.Show("Error - Please check your configuration");
-            }
-        }
-
-        public static Dictionary<string, string> LoadSettings()
-        {
-            if (File.Exists(ConfigFileName))
-            {
-                return XElement.Parse(File.ReadAllText(ConfigFileName)).Elements().ToDictionary(k => k.Name.ToString(), v => v.Value.ToString());
-            }
-            else return new Dictionary<string, string>();
-        }
-
-        public static List<string> LoadBanList()
-        {
-            if (File.Exists(BanlistFileName))
-            {
-                using (StreamReader stream = new StreamReader(BanlistFileName))
-                {
-                    var result = stream.ReadToEnd().TrimEnd(' ').Split(Environment.NewLine.ToCharArray());
-                    return result.Where(x => !string.IsNullOrEmpty(x)).ToList();
-                }
-            }
-            return new List<string>();
-        }
-
-        private void IgnoreCommands_CheckedChanged(object sender, RoutedEventArgs e)
-        {
-            if (IgnoreCommands.IsChecked != null)
-            {
-                ChatWindowControl.TwitchChatReader.confs.Update("IgnoreCommands", IgnoreCommands.IsChecked.ToString());
-                ChatWindowControl.IgnoreCommands = (bool)IgnoreCommands.IsChecked;
-                SaveToFile();
             }
         }
 
@@ -137,17 +106,25 @@
 
         private void AddToBanListButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!File.Exists(BanlistFileName))
-            {
-                File.Create(BanlistFileName);
-            }
             var textValue = AddToBanListValue.Text;
-            using (StreamWriter stream = new StreamWriter(BanlistFileName, true))
-            {
-                stream.WriteLine(textValue);
-            }
-            BanlistEditor.Text += (Environment.NewLine + textValue);
-            ChatWindowControl.TwitchChatReader.BanList.Add(textValue);
+            AddToBanListValue.Text = string.Empty;
+            if (string.IsNullOrEmpty(textValue) || Settings.Default.IgnoreList.Contains(textValue)) return;
+            Settings.Default.IgnoreList.Add(textValue);
+            Settings.Default.Save();
+            IgnoreListDisplay.Add(textValue);
+            BanlistEditor.Items.Refresh();
+        }
+
+        private void DeleteButton_Click(object sender, RoutedEventArgs e)
+        {
+            var button = sender as Button;
+            var value = button.Tag as string;
+            int IgnoreListIndex = Settings.Default.IgnoreList.IndexOf(value);
+            Settings.Default.IgnoreList.RemoveAt(IgnoreListIndex);
+            Settings.Default.Save();
+            int IgnoreListDisplayIndex = IgnoreListDisplay.IndexOf(value);
+            IgnoreListDisplay.RemoveAt(IgnoreListDisplayIndex);
+            BanlistEditor.Items.Refresh();
         }
     }
 }
